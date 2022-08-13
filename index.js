@@ -1,28 +1,116 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import mongoose from 'mongoose';
+import {
+    validationResult
+} from 'express-validator';
+
+import {
+    registerValidation
+} from './validations/auth.js';
+
+import UserModel from './models/User.js';
+
+mongoose
+    .connect(
+        'mongodb+srv://znogoud:<PASS>@cluster0.dvckf.mongodb.net/blog?retryWrites=true&w=majority',
+    )
+    .then(() => console.log('DB ok'))
+    .catch(err => console.log('DB error', err));
 
 const app = express();
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
+app.post('/auth/login', async (req, res) => {
+    try {
+        const user = await UserModel.findOne({
+            email: req.body.email,
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found', // NEVER specify it in real projects
+            });
+        }
+
+        const isValidPass = await bcrypt.compare(req.body.password, user._doc.passwordHash);
+
+        if (!isValidPass) {
+            return res.status(400).json({
+                message: 'Wrong login or pass',
+            });
+        }
+
+        const token = jwt.sign({
+                _id: user._id,
+            },
+            'secret123', {
+                expiresIn: '30d',
+            },
+        );
+
+        const {
+            passwordHash,
+            ...userData
+        } = user._doc;
+
+        res.json({
+            ...userData,
+            token,
+        });
+    } catch (e) {
+        console.log(e);
+        res.status(500).json({
+            message: 'No registration luck',
+        });
+    }
 });
 
-app.post('/auth/login', (req, res) => {
-    console.log(req.body);
+app.post('/auth/register', registerValidation, async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json(errors.array());
+        }
 
-    const token = jwt.sign({
+        const password = req.body.password;
+        const salt = await bcrypt.genSalt(10);
+        const hash = await bcrypt.hash(password, salt);
+
+        const doc = new UserModel({
             email: req.body.email,
-            fullName: 'John Doe',
-        },
-        'secret123',
-    );
+            fullName: req.body.fullName,
+            avatarUrl: req.body.avatarUrl,
+            passwordHash: hash,
+        });
 
-    res.json({
-        success: true,
-        token,
-    });
+        const user = await doc.save();
+
+        const token = jwt.sign({
+                _id: user._id,
+            },
+            'secret123', {
+                expiresIn: '30d',
+            },
+        );
+
+        const {
+            passwordHash,
+            ...userData
+        } = user._doc;
+
+        res.json({
+            ...userData,
+            token,
+        });
+    } catch (e) {
+        console.log(e);
+        res.status(500).json({
+            message: 'No registration luck',
+        });
+    }
 });
 
 app.listen(4444, err => {
