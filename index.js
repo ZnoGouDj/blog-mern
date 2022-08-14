@@ -11,11 +11,10 @@ import {
 } from './validations/auth.js';
 
 import UserModel from './models/User.js';
+import checkAuth from './utils/checkAuth.js';
 
 mongoose
-    .connect(
-        'mongodb+srv://znogoud:<PASS>@cluster0.dvckf.mongodb.net/blog?retryWrites=true&w=majority',
-    )
+    .connect('mongodb+srv://znogoud:123@cluster0.dvckf.mongodb.net/blog?retryWrites=true&w=majority')
     .then(() => console.log('DB ok'))
     .catch(err => console.log('DB error', err));
 
@@ -105,6 +104,30 @@ app.post('/auth/register', registerValidation, async (req, res) => {
             ...userData,
             token,
         });
+    } catch (e) {
+        console.log(e);
+        res.status(500).json({
+            message: 'No registration luck',
+        });
+    }
+});
+
+app.get('/auth/me', checkAuth, async (req, res) => {
+    try {
+        const user = await UserModel.findById(req.userId);
+
+        if (!user) {
+            return res.status(404).json({
+                message: 'User not found',
+            });
+        }
+
+        const {
+            passwordHash,
+            ...userData
+        } = user._doc;
+
+        res.json(userData);
     } catch (e) {
         console.log(e);
         res.status(500).json({
