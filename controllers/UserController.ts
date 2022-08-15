@@ -15,7 +15,7 @@ export const register = async (req, res) => {
       passwordHash: hash,
     });
 
-    const user = await doc.save();
+    const user: any = await doc.save();
 
     const token = jwt.sign(
       {
@@ -43,7 +43,7 @@ export const register = async (req, res) => {
 
 export const login = async (req, res) => {
   try {
-    const user = await UserModel.findOne({
+    const user: any = await UserModel.findOne({
       email: req.body.email,
     });
 
@@ -87,7 +87,7 @@ export const login = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = await UserModel.findById(req.userId);
+    const user: any = await UserModel.findById(req.userId);
 
     if (!user) {
       return res.status(404).json({
