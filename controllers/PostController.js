@@ -96,7 +96,7 @@ export const create = async (req, res) => {
         });
 
         const post = await doc.save();
-        console.log(post);
+
         res.json(post);
     } catch (e) {
         console.log(e);
